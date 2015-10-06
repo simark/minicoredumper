@@ -39,7 +39,7 @@ static struct localinfo ai;
 /**
  *   Print out an error message and optionally quit (if fatal is TRUE)
  */
-static void handleError(const char *msg, const char *reason, gboolean fatal)
+static void handle_error(const char *msg, const char *reason, gboolean fatal)
 {
 	g_printerr("APP: ERROR: %s (%s)\n", msg, reason);
 	if (fatal)
@@ -49,8 +49,8 @@ static void handleError(const char *msg, const char *reason, gboolean fatal)
 /**
  *   Main signal handler
  */
-static void appSignalHandler(DBusGProxy * proxy, const char *signalName,
-			     gpointer userData)
+static void app_signal_hangler(DBusGProxy * proxy, const char *signalName,
+			       gpointer userData)
 {
 	gchar *dump_path = NULL;
 	GError *error = NULL;
@@ -71,7 +71,7 @@ static void appSignalHandler(DBusGProxy * proxy, const char *signalName,
 					    &error);
 
 		if (error) {
-			handleError("Can't get dump path", error->message,
+			handle_error("Can't get dump path", error->message,
 				    FALSE);
 			g_clear_error(&error);
 		} else {
@@ -92,7 +92,7 @@ static void appSignalHandler(DBusGProxy * proxy, const char *signalName,
 /**
  * atexit function: register from dbus daemon
  */
-void End()
+void end()
 {
 }
 
@@ -128,13 +128,13 @@ void *start_dbus_gloop(void *arg)
 
 	mainloop = g_main_loop_new(NULL, FALSE);
 	if (!mainloop) {
-		handleError("Failed to create the mainloop", "Unknown (OOM?)",
+		handle_error("Failed to create the mainloop", "Unknown (OOM?)",
 			    TRUE);
 	}
 
 	conn = dbus_g_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (error)
-		handleError("Couldn't connect to the Session bus",
+		handle_error("Couldn't connect to the Session bus",
 			    error->message, TRUE);
 	g_clear_error(&error);
 
@@ -142,7 +142,7 @@ void *start_dbus_gloop(void *arg)
 					  VALUE_SERVICE_OBJECT_PATH,
 					  VALUE_SERVICE_INTERFACE);
 	if (!proxy)
-		handleError("Couldn't create the proxy object",
+		handle_error("Couldn't create the proxy object",
 			    "Unknown(dbus_g_proxy_new_for_name)", TRUE);
 
 	for (s = 0; s < sizeof(signalNames) / sizeof(signalNames[0]); s++) {
@@ -151,25 +151,25 @@ void *start_dbus_gloop(void *arg)
 	}
 
 	dbus_g_proxy_connect_signal(proxy, SIGNAL_DUMP,
-				    G_CALLBACK(appSignalHandler), NULL, NULL);
+				    G_CALLBACK(app_signal_hangler), NULL, NULL);
 
 	dbus_g_proxy_connect_signal(proxy, SIGNAL_REGISTER,
-				    G_CALLBACK(appSignalHandler), NULL, NULL);
+				    G_CALLBACK(app_signal_hangler), NULL, NULL);
 
 	org_ericsson_mcd_register(proxy, ai.uuid, ai.pid, &error);
 	if (error)
-		handleError("Failed to Register", error->message, FALSE);
+		handle_error("Failed to Register", error->message, FALSE);
 	else
 		g_print("APP: Application registered with %s \n", ai.uuid);
 	g_clear_error(&error);
 
-	atexit(End);
+	atexit(end);
 
 	g_main_loop_run(mainloop);
 
 	org_ericsson_mcd_unregister(proxy, ai.uuid, ai.pid, &error);
 	if (error)
-		handleError("Failed to Unregister", error->message, FALSE);
+		handle_error("Failed to Unregister", error->message, FALSE);
 	else
 		g_print("APP: Application unregistered with %s \n", ai.uuid);
 
