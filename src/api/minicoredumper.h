@@ -31,6 +31,10 @@
 #include <stdarg.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* opaque data types */
 struct mcd_dump_data;
 typedef struct mcd_dump_data *mcd_dump_data_t;
@@ -137,5 +141,9 @@ extern int mcd_dump_data_register_bin(const char *ident,
  * Returns 0 upon success, otherwise ENOKEY.
  */
 extern int mcd_dump_data_unregister(struct mcd_dump_data *dd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __MINICOREDUMPER_H__ */
