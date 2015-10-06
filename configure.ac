@@ -166,6 +166,8 @@ AC_OUTPUT([Makefile
 	   src/libminicoredumper/minicoredumper-uninstalled.pc
 	   src/libminicoredumper/minicoredumper.pc
 	   src/minicoredumper/Makefile
+	   src/example/Makefile
+	   src/example++/Makefile
 	   src/minicoredumper_dbusd/Makefile
 	   src/minicoredumper_trigger/Makefile
 	   src/minicoredumper_demo/Makefile

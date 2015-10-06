@@ -30,3 +30,5 @@ endif
 if COND_MINICOREDUMPER_TRIGGER
 SUBDIRS += minicoredumper_trigger
 endif
+
+SUBDIRS += example example++
