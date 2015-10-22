@@ -107,7 +107,7 @@ struct dump_info {
 	unsigned long vma_end;
 	struct core_vma *vma;
 
-	struct core_data *core_file;
+	struct core_data *core_data;
 	off64_t core_file_size;
 };
 

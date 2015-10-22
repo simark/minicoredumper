@@ -852,7 +852,7 @@ static int dump_compressed_tar(struct dump_info *di)
 
 	memset(&hdr, 0, sizeof(hdr));
 
-	assign_tar_blocks(di->core_file);
+	assign_tar_blocks(di->core_data);
 
 	/* fill header */
 
@@ -869,7 +869,7 @@ static int dump_compressed_tar(struct dump_info *di)
 	snprintf(hdr.groupname, sizeof(hdr.groupname), "root");
 
 	total_bytes = 0;
-	next_block = di->core_file;
+	next_block = di->core_data;
 	for (i = 0; next_block; i++) {
 		next_block = get_tar_block_map(next_block, &offset, &numbytes);
 		/* if this is not the last block, fill the full block */
@@ -949,8 +949,8 @@ static int dump_compressed_tar(struct dump_info *di)
 
 	/* write data blocks */
 	block_bytes_written = 0;
-	next_block = get_tar_block_map(di->core_file, &offset, &numbytes);
-	for (cur = di->core_file; cur; cur = cur->next) {
+	next_block = get_tar_block_map(di->core_data, &offset, &numbytes);
+	for (cur = di->core_data; cur; cur = cur->next) {
 		if (cur == next_block) {
 			if (block_bytes_written % BLOCK_SIZE != 0) {
 				/* fill to end of block */
@@ -1028,7 +1028,7 @@ static int dump_compressed_core(struct dump_info *di)
 	if (fd < 0)
 		goto out;
 
-	for (cur = di->core_file; cur; cur = cur->next) {
+	for (cur = di->core_data; cur; cur = cur->next) {
 		if (lseek64(cur->mem_fd, cur->mem_start, SEEK_SET) == -1) {
 			info("lseek di->mem_fd failed at 0x%lx",
 			     cur->mem_start);
@@ -1086,7 +1086,7 @@ static void dump_mini_core(struct dump_info *di)
 		     di->core_file_size);
 	}
 
-	for (cur = di->core_file; cur; cur = cur->next) {
+	for (cur = di->core_data; cur; cur = cur->next) {
 		/* do not dump on ourself */
 		if (cur->mem_fd == di->core_fd)
 			continue;
@@ -1119,29 +1119,29 @@ static int add_core_data(struct dump_info *di, off64_t dest_offset, size_t len,
 	struct core_data *prev = NULL;
 	off64_t start = dest_offset;
 	struct core_data *cur;
-	struct core_data *tmp;
+	struct core_data *new_data;
 	int done = 0;
 	off64_t end;
 
 	end = start + len;
 
-	for (cur = di->core_file; cur && !done; cur = cur->next) {
+	for (cur = di->core_data; cur && !done; cur = cur->next) {
 		if (end < cur->start) {
 			/* insert new block */
-			tmp = calloc(1, sizeof(*tmp));
-			if (!tmp)
+			new_data = calloc(1, sizeof(*new_data));
+			if (!new_data)
 				return ENOMEM;
 
-			tmp->start = start;
-			tmp->end = end;
-			tmp->mem_start = src_offset;
-			tmp->mem_fd = src_fd;
-			tmp->next = cur;
+			new_data->start = start;
+			new_data->end = end;
+			new_data->mem_start = src_offset;
+			new_data->mem_fd = src_fd;
+			new_data->next = cur;
 
 			if (prev)
-				prev->next = tmp;
+				prev->next = new_data;
 			else
-				di->core_file = tmp;
+				di->core_data = new_data;
 			done = 1;
 
 		} else if (end == cur->start) {
@@ -1152,20 +1152,20 @@ static int add_core_data(struct dump_info *di, off64_t dest_offset, size_t len,
 				cur->mem_start = src_offset;
 			} else {
 				/* non-adjacent block, insert new block */
-				tmp = calloc(1, sizeof(*tmp));
-				if (!tmp)
+				new_data = calloc(1, sizeof(*new_data));
+				if (!new_data)
 					return ENOMEM;
 
-				tmp->start = start;
-				tmp->end = end;
-				tmp->mem_start = src_offset;
-				tmp->mem_fd = src_fd;
-				tmp->next = cur;
+				new_data->start = start;
+				new_data->end = end;
+				new_data->mem_start = src_offset;
+				new_data->mem_fd = src_fd;
+				new_data->next = cur;
 
 				if (prev)
-					prev->next = tmp;
+					prev->next = new_data;
 				else
-					di->core_file = tmp;
+					di->core_data = new_data;
 			}
 			done = 1;
 
@@ -1190,11 +1190,11 @@ static int add_core_data(struct dump_info *di, off64_t dest_offset, size_t len,
 		while (cur->next) {
 			if (cur->next->start < cur->end) {
 				/* consolidate overlapping block */
-				tmp = cur->next;
-				if (tmp->end > cur->end)
-					cur->end = tmp->end;
-				cur->next = tmp->next;
-				free(tmp);
+				new_data = cur->next;
+				if (new_data->end > cur->end)
+					cur->end = new_data->end;
+				cur->next = new_data->next;
+				free(new_data);
 				continue;
 
 			} else if (cur->next->start == cur->end) {
@@ -1202,10 +1202,10 @@ static int add_core_data(struct dump_info *di, off64_t dest_offset, size_t len,
 				     == cur->next->mem_start) &&
 				    (cur->mem_fd == cur->next->mem_fd)) {
 					/* consolidate adjacent block */
-					tmp = cur->next;
-					cur->end = tmp->end;
-					cur->next = tmp->next;
-					free(tmp);
+					new_data = cur->next;
+					cur->end = new_data->end;
+					cur->next = new_data->next;
+					free(new_data);
 					continue;
 				}
 			}
@@ -1219,21 +1219,21 @@ static int add_core_data(struct dump_info *di, off64_t dest_offset, size_t len,
 		prev = cur;
 	}
 
-	tmp = calloc(1, sizeof(*tmp));
-	if (!tmp)
+	new_data = calloc(1, sizeof(*new_data));
+	if (!new_data)
 		return ENOMEM;
 
-	tmp->start = start;
-	tmp->end = end;
-	tmp->mem_start = src_offset;
-	tmp->mem_fd = src_fd;
+	new_data->start = start;
+	new_data->end = end;
+	new_data->mem_start = src_offset;
+	new_data->mem_fd = src_fd;
 
 	if (prev) {
-		tmp->next = prev->next;
-		prev->next = tmp;
+		new_data->next = prev->next;
+		prev->next = new_data;
 	} else {
-		tmp->next = di->core_file;
-		di->core_file = tmp;
+		new_data->next = di->core_data;
+		di->core_data = new_data;
 	}
 
 	return 0;
