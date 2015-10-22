@@ -384,6 +384,13 @@ static int init_di(struct dump_info *di, char **argv, int argc)
 		return 1;
 	}
 
+	if (asprintf(&tmp_path, "%s/dumped", di->dst_dir) == -1)
+		return 1;
+
+	di->dumped_file = fopen(tmp_path, "w");
+	if (!di->dumped_file)
+		return 1;
+
 	if (di->cfg->prog_config.dump_fat_core) {
 		if (asprintf(&tmp_path, "%s/fatcore", di->dst_dir) == -1)
 			return 1;
@@ -1573,9 +1580,13 @@ static int dump_vma(struct dump_info *di, unsigned long start, size_t len,
 	va_start(ap, fmt);
 	vasprintf(&desc, fmt, ap);
 	va_end(ap);
+
 	info("dump: %s: %zu bytes @ 0x%lx", desc ? desc : "", len, start);
+
 	if (desc)
 		free(desc);
+
+	fprintf(di->dumped_file, "dump 0x%lx %zu\n", start, len);
 
 	return add_core_data(di, tmp->file_off + start - tmp->start, len,
 			     di->mem_fd, start);
@@ -3120,6 +3131,10 @@ int main(int argc, char **argv)
 	/* close log streams */
 	if (di.info_file)
 		fclose(di.info_file);
+
+	if (di.dumped_file)
+		fclose(di.dumped_file);
+
 	closelog();
 
 	munlockall();

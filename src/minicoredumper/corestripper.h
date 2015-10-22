@@ -79,6 +79,7 @@ struct dump_info {
 	int mem_fd;
 	int core_fd;
 	int fatcore_fd;
+	FILE *dumped_file;
 
 	off_t core_offset;
 	off_t core_start_offset;
